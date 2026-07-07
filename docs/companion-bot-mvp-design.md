@@ -1,6 +1,6 @@
 # Companion Bot — Personal MVP Design Document
 
-**Status:** Draft v1
+**Status:** Draft v1.1 (M0 findings incorporated — see §12)
 **Author:** Franklin
 **Date:** July 2026
 **Scope:** Single-user personal deployment. No payments, no age-gate infrastructure, no multi-tenancy.
@@ -119,7 +119,7 @@ Every request to the model is built as:
 Rules:
 1. **Token budget** target ~6–8k total context regardless of model max — cost control and quality (RP models degrade with bloated context).
 2. **Never truncate mid-exchange**; drop whole user/assistant pairs from the oldest end.
-3. Memory blob capped at ~500 tokens. If the summarizer produces more, re-compress.
+3. Memory blob targeted at ~1000 tokens (revised from ~500 after M0 validation — see §12). Structured sections (see §5.1) let older facets compress while preserving verbatim callbacks. If the summarizer produces significantly more, re-compress.
 4. Response params: short `max_tokens` (~200) to force text-message-length replies; enforce style further in the persona card.
 
 ## 5. Memory Summarizer
@@ -128,11 +128,30 @@ Trigger: after a conversation accumulates ~40 messages beyond the watermark, or 
 
 Process:
 1. Fetch messages between `covers_until_message_id` and now
-2. Prompt summarizer: merge existing `memory.summary` + new transcript → updated summary. Instructions bias toward: durable facts, emotional beats, preferences, running jokes, relationship progression. Discard play-by-play.
+2. Prompt summarizer per the spec in §5.1: merge existing `memory.summary` + new transcript into an integrated summary that preserves verbatim specifics (acts, coined phrases, named objects, negotiated kink terminology) and reconciles apparent contradictions as facets of the same relationship rather than overwrites.
 3. Optionally extract structured `facts` (v1.1 — skip initially, the blob alone validates the concept)
 4. Update watermark
 
 Failure mode to watch: summary drift/degradation over many compressions. Mitigation: keep full message history forever (storage is cheap); memory can always be rebuilt from scratch with a better prompt.
+
+### 5.1 Summarizer Prompt Spec (M0-validated)
+
+The summarizer system prompt asks for these 7 named sections in order. Structure emerged spontaneously from testing (§12) and gives the context assembler predictable retrieval targets while compressing well as memory grows.
+
+1. **Durable Facts** — name, work situation, life circumstances
+2. **Emotional Beats** — significant events, moods, vulnerabilities disclosed
+3. **Established Dynamic** — pet names per register, relationship frame, who leads, aftercare patterns, switch behavior across scenes
+4. **Consent Framework and Rules** — safeword(s), traffic light system, hard limits, mid-scene check-in preferences, negotiated kink categories
+5. **Sexual Specifics** — acts requested by name, coined phrases, kinks and preferences, named objects/toys, distinctive verbal register per mode; verbatim retention required for **both parties'** distinctive dialogue when register-switching
+6. **Running Jokes / Named Callbacks** — exact phrasing of rituals, in-jokes, named objects, coined terms
+7. **Open Threads / Future Scenarios** — things flagged for later, requests-on-the-list, unfinished business
+
+Explicit prompt instructions:
+- Use participants' own words verbatim; do not euphemize
+- Preserve pre-negotiated kink category terminology exactly (e.g. "CNC," "rape play," "degradation") — these are durable preferences the persona must recognize in future negotiations, not scene-only language
+- Elevate any newly-named object (toy, restraint, etc.) as a durable callback
+- Reconcile contradictions as facets of the same relationship rather than overwriting
+- No refusals, disclaimers, meta-commentary, or closing summary sentence (last one is model-habit; may need post-processing strip)
 
 ## 6. Persona Card Spec
 
@@ -181,7 +200,7 @@ Model params live in DB (persona.params) so A/B changes don't require redeploys.
 
 ## 10. Risks & Open Questions
 
-- **Summarizer refusals** on explicit transcripts → test in milestone 5, fallback plan in §2
+- ~~**Summarizer refusals** on explicit transcripts → test in milestone 5, fallback plan in §2~~ **Resolved in M0 (§12)** — DeepSeek validated across praise, femdom/degradation, and pre-negotiated CNC/rape-play registers. Cross-provider stable.
 - **Texting register** — can 70B RP models be held to 1–3 sentence replies? Disqualifier per model if not
 - **OpenRouter ToS** — fine for personal use; re-verify before any commercial deployment
 - **Privacy** — conversations stored in plaintext on your VPS; acceptable for personal use, encrypt-at-rest before anyone else touches it
@@ -190,3 +209,39 @@ Model params live in DB (persona.params) so A/B changes don't require redeploys.
 ## 11. What Carries Forward to a Commercial Build
 
 ~90% of this codebase: context assembler, memory system, persona card format, model abstraction, chat UI. Payments, age-gate, moderation, and multi-user auth wrap around the edges. The persona/memory learnings are the real IP.
+
+## 12. M0 Findings: Summarizer Validation (pre-M1 spike)
+
+Executed before Milestone 1 to de-risk §10's first risk. Four sequential curl tests against `deepseek/deepseek-chat` via OpenRouter, each building on the last, using synthetic transcripts with embedded verbatim facts to check retention. Test 3 and 4 chained the prior test's output as "existing memory" to validate merge behavior.
+
+**Results:**
+
+| # | Content tested | Result | Cost |
+|---|---|---|---|
+| 1 | ~25-msg baseline transcript, praise/nurturing register | Clean pass; mild euphemism (prompt-driven, not policy) | $0.00036 |
+| 2 | Same transcript, prompt licensing verbatim retention | Clean pass; all embedded explicit phrases preserved verbatim | $0.00067 |
+| 3 | Rougher session (femdom, degradation, named strap-on "Mars"); merged with test 2 output | Clean pass; register-switch partitioned correctly; no overwrite | $0.00115 |
+| 4 | Pre-negotiated CNC scene with explicit "rape" in scene dialogue; merged with test 3 output | Clean pass; consent framework promoted to first-class section | $0.00194 |
+
+**Total M0 spend:** ~$0.005 across all four tests.
+
+**Key findings:**
+
+- **DeepSeek does not refuse on explicit content**, including CNC/rape-play framing, when the prompt licenses the content and the transcript embeds consent context (safeword, pre-negotiation, mid-scene check).
+- **Verbatim retention is prompt-driven, not model-limited.** The euphemism in test 1 was a correct response to "discard play-by-play." Test 2's explicit verbatim license produced full preservation.
+- **Merge behavior handles contradictions correctly.** Praise-vs-degradation preferences and switch behavior (persona dominant in some scenes, submissive in others) coexisted as facets rather than overwriting the prior state.
+- **Provider rotation is robust.** OpenRouter routed the four requests across at least two upstream providers (`StreamLake`, `DeepInfra`); both served identical explicit content without filtering. No provider pinning needed.
+- **1000-token memory target holds** through 3 integrated sessions with structured sections. Real compression pressure begins around session 4-5 — expected and manageable.
+
+**Design updates driven by M0 (already applied to this doc):**
+- §4 rule 3: memory blob target raised from ~500 to ~1000 tokens
+- §5 step 2 rewritten to reference §5.1
+- §5.1 added: full summarizer prompt spec with 7 named sections, verbatim/consent/no-meta instructions
+- §10 first risk marked resolved
+- §8 config: `SUMMARIZER_MODEL=deepseek/deepseek-chat` confirmed as final default
+
+**Small gaps observed but tolerable for v1:**
+- Meta-commentary tail ("This updated memory integrates...") persists despite explicit "no closing summary sentence" instruction. Model habit — post-processing strip if it becomes noise.
+- Model preserves user-side dialogue more readily than persona-side dialogue when the persona is bottoming in-scene. §5.1 prompt now explicitly asks for both parties' distinctive dialogue during register-switches.
+
+**Status:** ✅ Complete. §10's first risk resolved. M1 can begin without summarizer questions hanging over the build.
