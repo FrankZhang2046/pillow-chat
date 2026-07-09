@@ -8,7 +8,19 @@
       "Bash(curl -sN -X POST http://localhost:3000/api/chat -H 'Content-Type: application/json' -d '{\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}' -m 40)",
       "Bash(curl -s https://openrouter.ai/api/v1/models)",
       "Bash(python3 -c \"import json,sys; ms=json.load\\(sys.stdin\\)['data']; [print\\(m['id'],'|',m.get\\('pricing',{}\\).get\\('prompt','?'\\),'/', m.get\\('pricing',{}\\).get\\('completion','?'\\)\\) for m in ms if 'stheno' in m['id'].lower\\(\\) or 'sao10k' in m['id'].lower\\(\\) or 'l3' in m['id'].lower\\(\\)]\")",
-      "Bash(python3 -c \"import json,sys; ms=json.load\\(sys.stdin\\)['data']; [print\\(m['id'],'|',m.get\\('pricing',{}\\).get\\('prompt','?'\\),'/', m.get\\('pricing',{}\\).get\\('completion','?'\\)\\) for m in ms if 'magnum' in m['id'].lower\\(\\)]\")"
+      "Bash(python3 -c \"import json,sys; ms=json.load\\(sys.stdin\\)['data']; [print\\(m['id'],'|',m.get\\('pricing',{}\\).get\\('prompt','?'\\),'/', m.get\\('pricing',{}\\).get\\('completion','?'\\)\\) for m in ms if 'magnum' in m['id'].lower\\(\\)]\")",
+      "Bash(pnpm generate-routes *)",
+      "Bash(curl -s -o /tmp/landing.html -w \"status=%{http_code} size=%{size_download}\\\\n\" http://localhost:3001/)",
+      "Bash(curl -s -o /tmp/chat.html -w \"status=%{http_code} size=%{size_download}\\\\n\" http://localhost:3001/chat)",
+      "Bash(awk 'BEGIN{IGNORECASE=1} /Pillow Chat/{a++} /Ready when you are/{b++} /typingBounce/{c++} /remembers you/{d++} END{print \"Pillow Chat=\"a\" Ready=\"b\" typingBounce=\"c\" remembers=\"d}' /tmp/landing.html)",
+      "Bash(awk 'NR==192' \"/Users/frankzhang/Downloads/Pillow Chat Interface \\(standalone\\).html\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const t=JSON.parse\\(fs.readFileSync\\('/tmp/chat-template.json','utf8'\\)\\);fs.writeFileSync\\('/tmp/chat-template.html',t\\);console.log\\('wrote',t.length,'chars,',t.split\\(String.fromCharCode\\(10\\)\\).length,'lines'\\);\")",
+      "Bash(npx tsc *)",
+      "Bash(curl -s -o /tmp/landing2.html -w \"landing status=%{http_code} size=%{size_download}\\\\n\" http://localhost:3001/)",
+      "Bash(curl -s -o /tmp/chat3.html -w \"chat status=%{http_code} size=%{size_download}\\\\n\" http://localhost:3001/chat)",
+      "Bash(curl -sI http://localhost:3001/favicon.svg)",
+      "Bash(curl -s http://localhost:3001/favicon.svg)",
+      "Bash(curl -s http://localhost:3001/)"
     ]
   }
 }

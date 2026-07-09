@@ -15,13 +15,26 @@ export const Route = createRootRoute({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'TanStack Start Starter',
+        title: 'Pillow Chat — AI Companion That Remembers You',
+      },
+      {
+        name: 'description',
+        content:
+          "Meet the AI companion that actually remembers you — your stories, your day, your inside jokes. Start a free private chat, no account required.",
       },
     ],
     links: [
       {
         rel: 'stylesheet',
         href: appCss,
+      },
+      { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+      { rel: 'alternate icon', href: '/favicon.ico' },
+      { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+      { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossOrigin: '' },
+      {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap',
       },
     ],
   }),

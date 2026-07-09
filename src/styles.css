@@ -13,5 +13,25 @@ body,
 
 body {
   margin: 0;
+  background: oklch(0.08 0.005 30);
+}
+
+::selection {
+  background: oklch(0.68 0.17 350 / 0.35);
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+@keyframes softGlow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.85; }
+}
+
+@keyframes cursorBlink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
 }
 
