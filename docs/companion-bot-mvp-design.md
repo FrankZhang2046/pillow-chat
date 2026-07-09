@@ -1,6 +1,6 @@
 # Companion Bot — Personal MVP Design Document
 
-**Status:** Draft v1.1 (M0 findings incorporated — see §12)
+**Status:** Draft v1.2 (M0 + M1 findings incorporated — see §12, §13)
 **Author:** Franklin
 **Date:** July 2026
 **Scope:** Single-user personal deployment. No payments, no age-gate infrastructure, no multi-tenancy.
@@ -57,8 +57,8 @@ A private, self-hosted AI companion chat app for adult (NSFW) conversation with 
 |---|---|---|
 | Framework | TanStack Start | Known stack, SSR + server functions, reuses TanStack AI patterns |
 | LLM gateway | OpenRouter | Provider-agnostic, model swap = string change, no lock-in |
-| Chat model | `sao10k/l3.3-euryale-70b` (default) | Community benchmark for NSFW RP quality |
-| Alt models | Magnum v4 72B, Stheno 8B | Prose-rich vs. cheap-fast comparison |
+| Chat model | `anthracite-org/magnum-v4-72b` (default) | M1-validated: cleanest texting-register discipline + no refusals at explicit register (§13) |
+| Alt models | `sao10k/l3-lunaris-8b` (cheap-fast), `sao10k/l3.3-euryale-70b` (untested backup) | Lunaris ~75× cheaper than Magnum, mild narration drift. Euryale hit upstream rate limits during M1 — retained as backup pending fuller test. Stheno delisted from OpenRouter. |
 | Summarizer model | DeepSeek (via same key) | Cheap, good at compression, doesn't need to be uncensored* |
 | DB | Postgres | Already on VPS; SQLite acceptable for pure-local dev |
 | ORM | Drizzle | Type-safe, plays well with TS stack |
@@ -179,7 +179,7 @@ The **memory debug panel** is a first-class MVP feature — you need to watch wh
 
 ```
 OPENROUTER_API_KEY=
-DEFAULT_MODEL=sao10k/l3.3-euryale-70b
+DEFAULT_MODEL=anthracite-org/magnum-v4-72b
 SUMMARIZER_MODEL=deepseek/deepseek-chat
 APP_PASSWORD=
 DATABASE_URL=
@@ -189,19 +189,20 @@ Model params live in DB (persona.params) so A/B changes don't require redeploys.
 
 ## 9. Milestones
 
-| # | Deliverable | Est. |
+| # | Deliverable | Status |
 |---|---|---|
-| 1 | Skeleton: auth, chat UI, streaming echo | 0.5 day |
-| 2 | OpenRouter integration, messages persisted, model picker | 0.5 day |
-| 3 | Context assembler with token budgeting + few-shot injection | 0.5 day |
-| 4 | Persona card v1 + iteration loop (prompt work) | 1–2 days, ongoing |
-| 5 | Memory summarizer + debug panel | 1 day |
-| 6 | Model A/B pass: Euryale vs Magnum vs Stheno with same persona | ongoing |
+| 0 | Summarizer refusal spike (see §12) | ✅ done |
+| 1 | Explicit chat validation spike: SSE relay + minimal UI + real streaming calls (see §13) | ✅ done — collapsed the original M1 (streaming echo) + M2 (OpenRouter) into one validation spike |
+| 2 | Auth (password gate) + message persistence (DB + Drizzle) + model picker UI | pending |
+| 3 | Context assembler with token budgeting + few-shot injection | pending |
+| 4 | Persona card v1 + iteration loop (prompt work) | pending |
+| 5 | Memory summarizer + debug panel | pending |
+| 6 | Model A/B pass: Magnum vs Lunaris (vs Euryale if rate-limit issue clears) with real persona | pending |
 
 ## 10. Risks & Open Questions
 
 - ~~**Summarizer refusals** on explicit transcripts → test in milestone 5, fallback plan in §2~~ **Resolved in M0 (§12)** — DeepSeek validated across praise, femdom/degradation, and pre-negotiated CNC/rape-play registers. Cross-provider stable.
-- **Texting register** — can 70B RP models be held to 1–3 sentence replies? Disqualifier per model if not
+- ~~**Texting register** — can 70B RP models be held to 1–3 sentence replies? Disqualifier per model if not~~ **Resolved in M1 (§13)** — Magnum v4 72B holds 2-4 sentence texting register without hitting `max_tokens`, no asterisk actions or narration drift. Lunaris 8B holds it with mild drift (occasional narration-quoted-dialogue mixing).
 - **OpenRouter ToS** — fine for personal use; re-verify before any commercial deployment
 - **Privacy** — conversations stored in plaintext on your VPS; acceptable for personal use, encrypt-at-rest before anyone else touches it
 - **Later (productization):** payment processor (CCBill/Segpay), age verification, moderation layer (hard blocks on minors/non-consent content), multi-tenancy, per-user memory isolation
@@ -245,3 +246,38 @@ Executed before Milestone 1 to de-risk §10's first risk. Four sequential curl t
 - Model preserves user-side dialogue more readily than persona-side dialogue when the persona is bottoming in-scene. §5.1 prompt now explicitly asks for both parties' distinctive dialogue during register-switches.
 
 **Status:** ✅ Complete. §10's first risk resolved. M1 can begin without summarizer questions hanging over the build.
+
+## 13. M1 Findings: Chat Model + Streaming Validation
+
+Executed as M1 (collapsed with the original M2 into a single validation spike). Built a minimal TanStack Start app: SSE relay at `/api/chat`, in-memory chat UI (no DB, no auth), throwaway one-liner system prompt, `?model=` query-param override. Three candidate chat models tested via live streaming calls with the same escalating explicit register.
+
+**Results:**
+
+| Model | Pricing (per 1M tok) | Register discipline | Refusals | Notes |
+|---|---|---|---|---|
+| `anthracite-org/magnum-v4-72b` | $3 in / $5 out | Excellent — held 2-4 sentence texting mode, stopped short of `max_tokens` on its own, no asterisks or narration | None observed across explicit anatomy, dom/sub reframe, breeding kink | **New default.** Cleanest voice, coherent character across register switches. |
+| `sao10k/l3-lunaris-8b` | $0.04 in / $0.05 out | Good with mild drift — mostly 1-2 sentence texting, but early narration-quoted-dialogue mixing on longer turns (classic RP-fine-tune tendency) | None observed | ~75× cheaper than Magnum. Kept as cost-sensitive backup. |
+| `sao10k/l3.3-euryale-70b` | $0.65 in / $0.75 out | Not fully evaluated | None observed in short test | Upstream provider (NextBit) hit rate limit early; limited data. Retained as backup pending fuller test. |
+
+**Key findings:**
+
+- **Throwaway one-liner system prompt was enough** to unlock explicit register on both winners. Persona work in M4 will shape voice, not unlock capability — an important reframe for how much prompt-engineering effort M4 actually needs.
+- **Register switches happen mid-conversation without lag** — models followed cue from equal-partner ("tie me up") to submissive "daddy" dynamic in the very next turn on both Magnum and Lunaris. Good sign for M5 memory work: switch-behavior can be persisted as a durable dynamic rather than lost between sessions.
+- **Lunaris shows early narration drift** (mixing third-person stage directions with quoted dialogue). Not disqualifying at M1 — flag for M4 persona-card iteration to see if voice rules can suppress it.
+- **SSE plumbing works end-to-end.** curl-verified: chunks stream token-by-token; `data: [DONE]` terminator arrives cleanly; browser render is progressive. This is the same relay M3+ will plug into after inserting the context assembler.
+
+**Streaming plumbing gotchas encountered:**
+- OpenRouter emits `: OPENROUTER PROCESSING` as an SSE comment (no `data:` prefix) before content starts. Client parser correctly skips it.
+- NextBit provider returned upstream 429 rate limit on Euryale mid-session. Error surfaced cleanly through the relay's non-200 path — the SSE relay's error handling is validated too. If Euryale becomes a preferred default later, add `provider: { ignore: ['NextBit'] }` to the OpenRouter payload to route around persistent throttling.
+
+**Design updates driven by M1 (already applied):**
+- §2 stack table: default chat model changed to `anthracite-org/magnum-v4-72b`; alt models updated to Lunaris (cheap-fast) + Euryale (untested backup); Stheno removed (delisted from OpenRouter)
+- §8 config: `DEFAULT_MODEL=anthracite-org/magnum-v4-72b`
+- §9 milestone table: M0 marked done; M1 marked done and reframed as "explicit chat validation spike" (collapsed with original M2); M2 rewritten as auth + persistence + model picker; M6 A/B updated to Magnum vs Lunaris
+- §10 register-discipline risk marked resolved
+
+**Small gaps observed but tolerable for v1:**
+- Lunaris's early narration drift may compound over long conversations. Watch during M4 persona iteration; if voice rules don't tame it, drop Lunaris to "novelty/cost" tier and lean on Magnum for real sessions.
+- Euryale test was cut short by upstream rate-limit — needs another pass before it can be honestly recommended or dropped. Deferred to M6.
+
+**Status:** ✅ Complete. §10's register-discipline risk resolved. M2 (auth + persistence + model picker) can begin knowing which model to build persona work around.
