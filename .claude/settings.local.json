@@ -20,7 +20,8 @@
       "Bash(curl -s -o /tmp/chat3.html -w \"chat status=%{http_code} size=%{size_download}\\\\n\" http://localhost:3001/chat)",
       "Bash(curl -sI http://localhost:3001/favicon.svg)",
       "Bash(curl -s http://localhost:3001/favicon.svg)",
-      "Bash(curl -s http://localhost:3001/)"
+      "Bash(curl -s http://localhost:3001/)",
+      "WebFetch(domain:openrouter.ai)"
     ]
   }
 }

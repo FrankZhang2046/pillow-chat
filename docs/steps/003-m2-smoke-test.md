@@ -13,7 +13,7 @@ Franklin owns the landing-page design separately; this step owns the backend, pe
 ## Scope
 
 **In:**
-- Env config cleanup (kill committed key)
+- Typed env accessor with runtime validation
 - Postgres + Drizzle (sessions, messages, events, ip_counters tables)
 - Signed anonymous session cookie (HMAC, HttpOnly, Secure, SameSite=Lax)
 - AES-256-GCM encryption of message content at app layer
@@ -40,9 +40,9 @@ Steps ordered so each can be executed and verified before the next.
 
 ### 1. Env hygiene
 
-- Move current `.env` values to `.env.local` (gitignored). Ensure `.env` is not tracked; the committed one contains a real OpenRouter key and must be rotated on OpenRouter.
-- Add `.env.example` with the full variable list (no values).
-- New env vars this milestone adds:
+- `.env` stays gitignored and untracked (already the case — verified via `git log --all -- .env`, empty). Local dev: each dev copies `.env.example` → `.env` and fills in their own values. No key rotation needed; the key was never committed.
+- Prod secrets live in `/etc/companion-bot.env` on the VPS, loaded by the systemd unit (see §10). If we later move to GitHub Actions deploys, secrets come from repo Actions Secrets and get written to that file at deploy time — either way, never from a committed file.
+- Extend `.env.example` with the full variable list (no values). New env vars this milestone adds:
   - `DATABASE_URL` — Postgres
   - `SESSION_SECRET` — 32-byte hex, HMAC signing key for session cookie
   - `MESSAGE_ENCRYPTION_KEY` — 32-byte hex, AES-256-GCM key
@@ -164,10 +164,6 @@ Rationale: `sessions` holds identity + running counter (cheap read for rate-limi
 - `src/routes/index.tsx` — becomes landing/gate scaffold (Franklin designs the real one)
 - `src/routes/__root.tsx` — light meta updates for public site
 - `package.json` — add `drizzle-orm`, `drizzle-kit`, `postgres`, `tsx`; add DB scripts
-- `.gitignore` — ensure `.env.local` covered
-
-**Deleted / rotated:**
-- Committed `.env` — remove from tracking, rotate the OpenRouter key it exposes.
 
 ## Verification
 
@@ -182,7 +178,7 @@ Definition of done, walked end-to-end against the live VPS deploy:
 7. **Rate limit — per IP:** Simulate 201 messages/hour from the same IP across multiple sessions; expect `429`.
 8. **Retention dry-run:** `pnpm tsx scripts/purge-old-data.ts --dry-run` prints deletion counts (initially zero on a fresh deploy). Insert a row with `created_at = now() - interval '91 days'`, re-run dry-run, confirm count = 1. Run without `--dry-run`, confirm row is gone.
 9. **Cron installed:** `crontab -l` on VPS shows the daily entry.
-10. **Env safety:** `git log -p .env` shows no live secrets (or, more accurately, that the OpenRouter key from history has been rotated on the OpenRouter side).
+10. **Env safety:** `git ls-files | grep -E '^\.env'` returns only `.env.example` — no real secrets tracked. `src/lib/env.ts` throws on boot if any required var is missing (verified by unsetting one and confirming crash).
 11. **Cost sanity:** After ~20 minutes of self-testing, check OpenRouter dashboard — spend should be well under $1 and align with expected per-message token counts from M1.
 
 ## Notes / deferred concerns
