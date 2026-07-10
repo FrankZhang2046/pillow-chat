@@ -21,7 +21,26 @@
       "Bash(curl -sI http://localhost:3001/favicon.svg)",
       "Bash(curl -s http://localhost:3001/favicon.svg)",
       "Bash(curl -s http://localhost:3001/)",
-      "WebFetch(domain:openrouter.ai)"
+      "WebFetch(domain:openrouter.ai)",
+      "Bash(open -a Docker)",
+      "Bash(pnpm add *)",
+      "Bash(docker run *)",
+      "Bash(pnpm db:generate *)",
+      "Bash(pnpm db:migrate *)",
+      "Bash(docker exec pillow-pg *)",
+      "Bash(docker exec *)",
+      "Bash(pnpm tsx *)",
+      "Bash(curl -sf http://localhost:3000)",
+      "Bash(curl -sS -X POST http://localhost:3000/api/chat -H 'Content-Type: application/json' -d '{\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}' -c /tmp/pillow-cookies.txt --max-time 15 -o /tmp/pillow-chat-response.txt -D /tmp/pillow-chat-headers.txt)",
+      "Read(//tmp/**)",
+      "Bash(curl -sS -X POST http://localhost:3000/api/chat -H 'Content-Type: application/json' -d '{\"messages\":[{\"role\":\"user\",\"content\":\"hi again\"}]}' -b /tmp/pillow-cookies.txt --max-time 15 -o /tmp/pillow-chat2.txt -D /tmp/pillow-chat2-headers.txt)",
+      "Bash(curl -sS -X POST http://localhost:3000/api/chat -H 'Content-Type: application/json' -H 'Cookie: sid=fdb53962-f829-4c40-be9e-8e3ac4905c18.deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' -d '{\"messages\":[{\"role\":\"user\",\"content\":\"tampered\"}]}' --max-time 15 -o /dev/null -D /tmp/pillow-chat3-headers.txt)",
+      "Bash(kill 6735 37205)",
+      "Bash(rm -f /tmp/pillow-cookies.txt)",
+      "Bash(curl -sS -X POST http://localhost:3000/api/chat -H 'Content-Type: application/json' -d '{\"messages\":[{\"role\":\"user\",\"content\":\"say hi in exactly 3 words\"}]}' -c /tmp/pillow-cookies.txt --max-time 30 -o /tmp/pillow-resp.txt)",
+      "Bash(curl -sS -X POST http://localhost:3000/api/chat -H 'Content-Type: application/json' -d '{\"messages\":[{\"role\":\"user\",\"content\":\"say hi in exactly 3 words\"},{\"role\":\"assistant\",\"content\":\"Hello there, sweetie.\"},{\"role\":\"user\",\"content\":\"and now 5 words\"}]}' -b /tmp/pillow-cookies.txt --max-time 30 -o /tmp/pillow-resp2.txt)",
+      "Bash(xargs -r kill)",
+      "Bash(RATE_LIMIT_PER_SESSION=2 RATE_LIMIT_PER_IP_HOURLY=3 pnpm dev *)"
     ]
   }
 }

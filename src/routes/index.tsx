@@ -371,7 +371,7 @@ function Landing() {
               />
             }
             title="Private by design"
-            body="Encrypted. No account or email needed."
+            body="No account. No email. Private by default."
           />
         </div>
       </section>
@@ -472,7 +472,7 @@ function Landing() {
             textAlign: 'center',
           }}
         >
-          Privacy policy placeholder — chats encrypted in transit and at rest.
+          Privacy policy placeholder — chats encrypted in transit.
         </span>
       </footer>
     </div>
