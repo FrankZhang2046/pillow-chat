@@ -16,9 +16,14 @@ function intWithDefault(name: string, dflt: number): number {
   return n
 }
 
+function optional(name: string): string {
+  return process.env[name] ?? ''
+}
+
 export const env = {
   DATABASE_URL: required('DATABASE_URL'),
   SESSION_SECRET: required('SESSION_SECRET'),
   RATE_LIMIT_PER_SESSION: intWithDefault('RATE_LIMIT_PER_SESSION', 50),
   RATE_LIMIT_PER_IP_HOURLY: intWithDefault('RATE_LIMIT_PER_IP_HOURLY', 200),
+  ADMIN_TOKEN: optional('ADMIN_TOKEN'),
 } as const

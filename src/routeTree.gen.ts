@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiSessionStatusRouteImport } from './routes/api/session-status'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiAdminRouteImport } from './routes/api/admin'
 
 const ChatRoute = ChatRouteImport.update({
   id: '/chat',
@@ -23,40 +25,64 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSessionStatusRoute = ApiSessionStatusRouteImport.update({
+  id: '/api/session-status',
+  path: '/api/session-status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminRoute = ApiAdminRouteImport.update({
+  id: '/api/admin',
+  path: '/api/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
+  '/api/admin': typeof ApiAdminRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/session-status': typeof ApiSessionStatusRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
+  '/api/admin': typeof ApiAdminRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/session-status': typeof ApiSessionStatusRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
+  '/api/admin': typeof ApiAdminRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/session-status': typeof ApiSessionStatusRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/chat' | '/api/chat'
+  fullPaths: '/' | '/chat' | '/api/admin' | '/api/chat' | '/api/session-status'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chat' | '/api/chat'
-  id: '__root__' | '/' | '/chat' | '/api/chat'
+  to: '/' | '/chat' | '/api/admin' | '/api/chat' | '/api/session-status'
+  id:
+    | '__root__'
+    | '/'
+    | '/chat'
+    | '/api/admin'
+    | '/api/chat'
+    | '/api/session-status'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ChatRoute: typeof ChatRoute
+  ApiAdminRoute: typeof ApiAdminRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiSessionStatusRoute: typeof ApiSessionStatusRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -75,11 +101,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/session-status': {
+      id: '/api/session-status'
+      path: '/api/session-status'
+      fullPath: '/api/session-status'
+      preLoaderRoute: typeof ApiSessionStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
       fullPath: '/api/chat'
       preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin': {
+      id: '/api/admin'
+      path: '/api/admin'
+      fullPath: '/api/admin'
+      preLoaderRoute: typeof ApiAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -88,7 +128,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ChatRoute: ChatRoute,
+  ApiAdminRoute: ApiAdminRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiSessionStatusRoute: ApiSessionStatusRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

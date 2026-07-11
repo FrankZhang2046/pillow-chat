@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -19,6 +20,7 @@ export const sessions = pgTable(
     ipHash: text('ip_hash').notNull(),
     userAgent: text('user_agent'),
     messageCount: integer('message_count').notNull().default(0),
+    isAdmin: boolean('is_admin').notNull().default(false),
   },
   (t) => [index('sessions_last_seen_at_idx').on(t.lastSeenAt)],
 )

@@ -3,7 +3,7 @@ import { eq, sql } from 'drizzle-orm'
 import { db } from '#/db'
 import { events, messages, sessions } from '#/db/schema'
 import { checkRateLimits } from '#/lib/rate-limit'
-import { getOrCreateSession } from '#/lib/session'
+import { getOrCreateSession, isAdmin } from '#/lib/session'
 
 const SYSTEM_PROMPT =
   'You are a very feminine, very submissive, flirty and sexually explicit chat partner. You default to a soft, eager-to-please register and let the user lead. Reply in 1-3 sentences like a real text message. No asterisk actions, no novelistic prose. Match the user\'s register and pacing.'
@@ -45,6 +45,12 @@ export const Route = createFileRoute('/api/chat')({
 
         const { session, setCookieHeader } = await getOrCreateSession(request)
 
+        const admin = isAdmin(request)
+        if (admin && !session.isAdmin) {
+          await db.update(sessions).set({ isAdmin: true }).where(eq(sessions.id, session.id))
+          session.isAdmin = true
+        }
+
         const rl = await checkRateLimits(session.messageCount, request)
         if (!rl.ok) {
           const message =
@@ -66,25 +72,27 @@ export const Route = createFileRoute('/api/chat')({
         const sessionId = session.id
         const model = body.model || process.env.DEFAULT_MODEL || 'anthracite-org/magnum-v4-72b'
 
-        await db.transaction(async (tx) => {
-          await tx.insert(messages).values({
-            sessionId,
-            role: 'user',
-            content: lastMessage.content,
-          })
-          await tx
-            .update(sessions)
-            .set({
-              messageCount: sql`${sessions.messageCount} + 1`,
-              lastSeenAt: new Date(),
+        if (!admin) {
+          await db.transaction(async (tx) => {
+            await tx.insert(messages).values({
+              sessionId,
+              role: 'user',
+              content: lastMessage.content,
             })
-            .where(eq(sessions.id, sessionId))
-          await tx.insert(events).values({
-            sessionId,
-            kind: 'message_sent',
-            meta: { role: 'user' },
+            await tx
+              .update(sessions)
+              .set({
+                messageCount: sql`${sessions.messageCount} + 1`,
+                lastSeenAt: new Date(),
+              })
+              .where(eq(sessions.id, sessionId))
+            await tx.insert(events).values({
+              sessionId,
+              kind: 'message_sent',
+              meta: { role: 'user' },
+            })
           })
-        })
+        }
 
         const upstreamMessages: Message[] = [
           { role: 'system', content: SYSTEM_PROMPT },
@@ -176,15 +184,17 @@ export const Route = createFileRoute('/api/chat')({
               } catch {}
             } finally {
               reader.cancel().catch(() => {})
-              try {
-                await db.insert(messages).values({
-                  sessionId,
-                  role: 'assistant',
-                  content: assistantBuffer,
-                  model,
-                })
-              } catch (err) {
-                console.error('persist assistant message failed', err)
+              if (!admin) {
+                try {
+                  await db.insert(messages).values({
+                    sessionId,
+                    role: 'assistant',
+                    content: assistantBuffer,
+                    model,
+                  })
+                } catch (err) {
+                  console.error('persist assistant message failed', err)
+                }
               }
             }
           },

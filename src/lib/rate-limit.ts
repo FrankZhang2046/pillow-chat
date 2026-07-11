@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm'
 import { db } from '#/db'
 import { ipCounters } from '#/db/schema'
 import { env } from '#/lib/env'
-import { hashClientIp } from '#/lib/session'
+import { hashClientIp, isAdmin } from '#/lib/session'
 
 export type RateLimitResult = { ok: true } | { ok: false; reason: 'session' | 'ip' }
 
@@ -10,6 +10,8 @@ export async function checkRateLimits(
   sessionMessageCount: number,
   request: Request,
 ): Promise<RateLimitResult> {
+  if (isAdmin(request)) return { ok: true }
+
   if (sessionMessageCount >= env.RATE_LIMIT_PER_SESSION) {
     return { ok: false, reason: 'session' }
   }

@@ -17,6 +17,64 @@ To build this application for production:
 pnpm build
 ```
 
+# Admin Backdoor
+
+Personal bypass for the sole operator. Skips rate limits, doesn't persist messages, tags the session `is_admin=true` so demand-signal queries can exclude it. Intentionally minimal — the token is checked as a plain string against `env.ADMIN_TOKEN`.
+
+## Setup (one-time)
+
+1. Add a token to `.env`:
+   ```
+   ADMIN_TOKEN=pillowchat
+   ```
+   Any string works. Avoid guessable values (`admin`, `password`, `test`) — bots scan common route names and dictionaries. `/api/admin` returns 404 on wrong tokens so it looks like the route doesn't exist.
+2. Apply the `is_admin` column migration if not already:
+   ```bash
+   pnpm db:up && pnpm db:migrate
+   ```
+3. Restart `pnpm dev` so the server picks up the new env var.
+
+## Log in
+
+Visit in a browser:
+```
+http://localhost:3000/api/admin?token=pillowchat
+```
+Server verifies, sets an `HttpOnly` `admin_token` cookie (90-day lifetime), redirects to `/chat`. The header shows an amber `ADMIN` pill in place of the message counter. Hover the pill for a reminder of what admin mode does.
+
+## Log out / revoke
+
+- **This browser only:** DevTools → Application → Cookies → delete `admin_token`.
+- **Everywhere at once:** rotate `ADMIN_TOKEN` in `.env` (change the value), restart the server. All existing admin cookies stop matching.
+
+## What the backdoor changes at runtime
+
+| Where | Behavior |
+|---|---|
+| `src/lib/rate-limit.ts` | `checkRateLimits` short-circuits `{ ok: true }` — no session or IP limits |
+| `src/routes/api/chat.ts` | Skips `messages` inserts (user + assistant), skips `message_count` bump, skips `message_sent` event |
+| `sessions.is_admin` | Flipped to `true` on the first admin chat request (idempotent) |
+| `src/routes/chat.tsx` | Fetches `/api/session-status` on mount, shows amber `ADMIN` badge |
+
+`sessions.last_seen_at` is still updated (harmless), and `service_error` events still fire on upstream failures (operator visibility, filtered from analytics via `is_admin`).
+
+## Disabling entirely
+
+Leave `ADMIN_TOKEN` unset or empty. `/api/admin` returns 404 for every request, and `isAdmin(request)` returns `false` regardless of cookie contents.
+
+## Data-analysis pattern
+
+All demand-signal queries should exclude admin sessions:
+```sql
+SELECT ... FROM sessions WHERE is_admin = false ...
+```
+
+## Prod (VPS)
+
+Same flow, but `ADMIN_TOKEN` lives in `/etc/companion-bot.env` (per 009 deployment plan). After editing it: `sudo systemctl restart companion-bot`. Bookmark `https://<your-domain>/api/admin?token=<value>` for one-click admin login.
+
+**Honest caveat:** token in a GET query string ends up in Nginx access logs, browser history, and any Referer chain. Fine for smoke-test stakes; rotate the token if that's ever a concern.
+
 ## Testing
 
 This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:

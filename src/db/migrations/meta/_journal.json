@@ -8,6 +8,13 @@
       "when": 1783693835058,
       "tag": "0000_greedy_gideon",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783795585420,
+      "tag": "0001_last_black_knight",
+      "breakpoints": true
     }
   ]
 }

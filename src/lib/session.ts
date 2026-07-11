@@ -45,6 +45,22 @@ export function hashClientIp(request: Request): string {
   return createHash('sha256').update(clientIp(request)).digest('hex')
 }
 
+export function readCookie(request: Request, name: string): string | null {
+  const header = request.headers.get('cookie')
+  if (!header) return null
+  const prefix = `${name}=`
+  for (const part of header.split(';')) {
+    const trimmed = part.trim()
+    if (trimmed.startsWith(prefix)) return trimmed.slice(prefix.length)
+  }
+  return null
+}
+
+export function isAdmin(request: Request): boolean {
+  if (!env.ADMIN_TOKEN) return false
+  return readCookie(request, 'admin_token') === env.ADMIN_TOKEN
+}
+
 function buildCookie(uuid: string): string {
   const parts = [
     `${COOKIE_NAME}=${uuid}.${hmacHex(uuid)}`,

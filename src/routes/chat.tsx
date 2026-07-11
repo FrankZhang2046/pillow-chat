@@ -25,6 +25,7 @@ function Chat() {
   const { model } = Route.useSearch()
   const navigate = useNavigate()
   const [gateChecked, setGateChecked] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [messages, setMessages] = useState<Message[]>(() => [
     { role: 'assistant', content: OPENER, createdAt: new Date() },
   ])
@@ -37,6 +38,21 @@ function Chat() {
     if (localStorage.getItem('age_confirmed') === '1') setGateChecked(true)
     else void navigate({ to: '/' })
   }, [navigate])
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/session-status')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data && typeof data.isAdmin === 'boolean') {
+          setIsAdmin(data.isAdmin)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (!listRef.current || userScrolledUp.current) return
@@ -206,15 +222,31 @@ function Chat() {
           Pillow Chat
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span
-            style={{
-              font: `${remaining < 10 ? 700 : 600} 11px Sora, sans-serif`,
-              color:
-                remaining < 10 ? 'oklch(0.7 0.15 40)' : 'oklch(0.42 0.01 30)',
-            }}
-          >
-            {remaining}/{MESSAGE_LIMIT}
-          </span>
+          {isAdmin ? (
+            <span
+              title="Admin mode: rate limits bypassed, messages not persisted"
+              style={{
+                font: '700 9.5px Sora, sans-serif',
+                letterSpacing: '0.08em',
+                color: 'oklch(0.15 0.02 40)',
+                background: 'oklch(0.78 0.16 65)',
+                padding: '3px 7px',
+                borderRadius: '5px',
+              }}
+            >
+              ADMIN
+            </span>
+          ) : (
+            <span
+              style={{
+                font: `${remaining < 10 ? 700 : 600} 11px Sora, sans-serif`,
+                color:
+                  remaining < 10 ? 'oklch(0.7 0.15 40)' : 'oklch(0.42 0.01 30)',
+              }}
+            >
+              {remaining}/{MESSAGE_LIMIT}
+            </span>
+          )}
           <span
             style={{
               font: '700 9.5px Sora, sans-serif',
