@@ -32,6 +32,7 @@ function Chat() {
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const userScrolledUp = useRef(false)
 
   useEffect(() => {
@@ -58,6 +59,10 @@ function Chat() {
     if (!listRef.current || userScrolledUp.current) return
     listRef.current.scrollTo({ top: listRef.current.scrollHeight })
   }, [messages, streaming])
+
+  useEffect(() => {
+    if (!streaming) textareaRef.current?.focus()
+  }, [streaming, gateChecked])
 
   function onListScroll() {
     const el = listRef.current
@@ -154,6 +159,7 @@ function Chat() {
     const text = input.trim()
     if (!text || inputDisabled) return
     setInput('')
+    textareaRef.current?.focus()
     const now = new Date()
     const next: Message[] = [
       ...messages,
@@ -335,16 +341,17 @@ function Chat() {
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            background: inputDisabled ? 'oklch(0.11 0.008 30)' : 'oklch(0.13 0.01 30)',
+            background: blocked ? 'oklch(0.11 0.008 30)' : 'oklch(0.13 0.01 30)',
             borderRadius: '24px',
             padding: '6px 6px 6px 18px',
             border: `1px solid ${
-              inputDisabled ? 'oklch(0.17 0.012 30)' : 'oklch(0.2 0.015 30)'
+              blocked ? 'oklch(0.17 0.012 30)' : 'oklch(0.2 0.015 30)'
             }`,
-            opacity: blocked ? 0.5 : streaming ? 0.6 : 1,
+            opacity: blocked ? 0.5 : streaming ? 0.75 : 1,
           }}
         >
           <textarea
+            ref={textareaRef}
             rows={1}
             placeholder={
               showSessionCard
@@ -358,7 +365,7 @@ function Chat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
-            disabled={inputDisabled}
+            disabled={blocked}
             autoFocus
             style={{
               flex: 1,
