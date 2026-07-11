@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 
+type ErrorKind = 'retry' | 'rate-limit-session' | 'rate-limit-ip' | 'service-down'
+
 type Message = {
   role: 'user' | 'assistant'
   content: string
   createdAt: Date
-  error?: boolean
+  errorKind?: ErrorKind
 }
 
 const MESSAGE_LIMIT = 50
@@ -50,8 +52,14 @@ function Chat() {
 
   const userCount = messages.filter((m) => m.role === 'user').length
   const remaining = Math.max(0, MESSAGE_LIMIT - userCount)
-  const rateLimitHit = userCount >= MESSAGE_LIMIT
-  const inputDisabled = streaming || rateLimitHit
+  const rateLimitHitByCount = userCount >= MESSAGE_LIMIT
+  const lastUserErrorKind = [...messages].reverse().find((m) => m.role === 'user')?.errorKind
+  const showSessionCard =
+    rateLimitHitByCount || lastUserErrorKind === 'rate-limit-session'
+  const showIpCard = lastUserErrorKind === 'rate-limit-ip'
+  const showServiceDownCard = lastUserErrorKind === 'service-down'
+  const blocked = showSessionCard || showIpCard || showServiceDownCard
+  const inputDisabled = streaming || blocked
 
   async function streamAssistantReply(historyForApi: Message[]) {
     setStreaming(true)
@@ -66,8 +74,14 @@ function Chat() {
         }),
       })
       if (!res.ok || !res.body) {
-        const errText = await res.text().catch(() => `HTTP ${res.status}`)
-        throw new Error(errText || `HTTP ${res.status}`)
+        const parsed = await res.json().catch(() => null)
+        let kind: ErrorKind = 'retry'
+        if (parsed?.error === 'rate_limit') {
+          kind = parsed.reason === 'ip' ? 'rate-limit-ip' : 'rate-limit-session'
+        } else if (parsed?.error === 'service_unavailable') {
+          kind = 'service-down'
+        }
+        throw Object.assign(new Error('send failed'), { kind })
       }
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -102,13 +116,17 @@ function Chat() {
           }
         }
       }
-    } catch {
+    } catch (err) {
+      const kind: ErrorKind =
+        (err && typeof err === 'object' && 'kind' in err && typeof (err as { kind: unknown }).kind === 'string'
+          ? ((err as { kind: string }).kind as ErrorKind)
+          : 'retry')
       setMessages((prev) => {
         const copy = prev.slice()
         const last = copy[copy.length - 1]
         if (last?.role === 'assistant' && last.content === '') copy.pop()
         const nowLast = copy[copy.length - 1]
-        if (nowLast?.role === 'user') copy[copy.length - 1] = { ...nowLast, error: true }
+        if (nowLast?.role === 'user') copy[copy.length - 1] = { ...nowLast, errorKind: kind }
         return copy
       })
     } finally {
@@ -135,7 +153,7 @@ function Chat() {
     const now = new Date()
     const next: Message[] = [
       ...messages.slice(0, index),
-      { ...messages[index], error: false },
+      { ...messages[index], errorKind: undefined },
       ...messages.slice(index + 1),
       { role: 'assistant', content: '', createdAt: now },
     ]
@@ -245,7 +263,7 @@ function Chat() {
               />
             )
           }
-          if (m.error) {
+          if (m.errorKind === 'retry') {
             return (
               <UserBubbleFailed
                 key={i}
@@ -263,7 +281,9 @@ function Chat() {
           )
         })}
 
-        {rateLimitHit && !streaming && <RateLimitCard />}
+        {!streaming && showSessionCard && <RateLimitSessionCard />}
+        {!streaming && showIpCard && <RateLimitIpCard />}
+        {!streaming && showServiceDownCard && <ServiceDownCard />}
       </div>
 
       {/* INPUT */}
@@ -289,12 +309,20 @@ function Chat() {
             border: `1px solid ${
               inputDisabled ? 'oklch(0.17 0.012 30)' : 'oklch(0.2 0.015 30)'
             }`,
-            opacity: rateLimitHit ? 0.5 : streaming ? 0.6 : 1,
+            opacity: blocked ? 0.5 : streaming ? 0.6 : 1,
           }}
         >
           <textarea
             rows={1}
-            placeholder={rateLimitHit ? 'Preview limit reached' : 'Message…'}
+            placeholder={
+              showSessionCard
+                ? 'Preview limit reached'
+                : showIpCard
+                  ? 'Rate limited'
+                  : showServiceDownCard
+                    ? 'Service unavailable'
+                    : 'Message…'
+            }
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
@@ -553,43 +581,62 @@ function TypingDots() {
   )
 }
 
-function RateLimitCard() {
+const cardContainerStyle: CSSProperties = {
+  alignSelf: 'center',
+  textAlign: 'center',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '10px',
+  background: 'oklch(0.14 0.04 350 / 0.45)',
+  borderRadius: '16px',
+  padding: '16px 18px',
+  marginTop: '6px',
+  maxWidth: '86%',
+}
+
+const cardTextStyle: CSSProperties = {
+  font: '500 13px/1.5 Sora, sans-serif',
+  color: 'oklch(0.85 0.03 30)',
+}
+
+const cardActionStyle: CSSProperties = {
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  font: '700 13px Sora, sans-serif',
+  color: 'oklch(0.78 0.16 350)',
+  cursor: 'pointer',
+}
+
+function RateLimitSessionCard() {
   return (
-    <div
-      style={{
-        alignSelf: 'center',
-        textAlign: 'center',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '10px',
-        background: 'oklch(0.14 0.04 350 / 0.45)',
-        borderRadius: '16px',
-        padding: '16px 18px',
-        marginTop: '6px',
-        maxWidth: '86%',
-      }}
-    >
-      <span
-        style={{
-          font: '500 13px/1.5 Sora, sans-serif',
-          color: 'oklch(0.85 0.03 30)',
-        }}
-      >
-        You've hit the 50-message preview for this session — reload to start over.
+    <div style={cardContainerStyle}>
+      <span style={cardTextStyle}>
+        You've hit the free-preview limit for this session — reload to start over.
       </span>
-      <button
-        onClick={() => window.location.reload()}
-        style={{
-          background: 'none',
-          border: 'none',
-          padding: 0,
-          font: '700 13px Sora, sans-serif',
-          color: 'oklch(0.78 0.16 350)',
-          cursor: 'pointer',
-        }}
-      >
+      <button onClick={() => window.location.reload()} style={cardActionStyle}>
         ↻ Reload chat
       </button>
+    </div>
+  )
+}
+
+function RateLimitIpCard() {
+  return (
+    <div style={cardContainerStyle}>
+      <span style={cardTextStyle}>
+        Too many chats from your network right now. Try again in a bit.
+      </span>
+    </div>
+  )
+}
+
+function ServiceDownCard() {
+  return (
+    <div style={cardContainerStyle}>
+      <span style={cardTextStyle}>
+        Service is temporarily unavailable. We're on it — try again in a bit.
+      </span>
     </div>
   )
 }

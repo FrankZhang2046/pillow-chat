@@ -10,43 +10,57 @@ const SYSTEM_PROMPT =
 
 type Message = { role: 'user' | 'assistant' | 'system'; content: string }
 
+type ErrorBody =
+  | { error: 'service_unavailable'; message: string }
+  | { error: 'bad_request'; message: string }
+  | { error: 'rate_limit'; reason: 'session' | 'ip'; message: string }
+
+function errorResponse(status: number, body: ErrorBody, setCookieHeader?: string): Response {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (setCookieHeader) headers['Set-Cookie'] = setCookieHeader
+  return new Response(JSON.stringify(body), { status, headers })
+}
+
 export const Route = createFileRoute('/api/chat')({
   server: {
     handlers: {
       POST: async ({ request }) => {
         const apiKey = process.env.OPENROUTER_API_KEY
         if (!apiKey) {
-          return new Response('OPENROUTER_API_KEY not set', { status: 500 })
+          return errorResponse(500, {
+            error: 'service_unavailable',
+            message: 'Service is temporarily unavailable.',
+          })
         }
 
         let body: { messages: Message[]; model?: string }
         try {
           body = await request.json()
         } catch {
-          return new Response('invalid JSON body', { status: 400 })
+          return errorResponse(400, {
+            error: 'bad_request',
+            message: 'Invalid request body.',
+          })
         }
 
         const { session, setCookieHeader } = await getOrCreateSession(request)
 
         const rl = await checkRateLimits(session.messageCount, request)
         if (!rl.ok) {
-          const headers: Record<string, string> = {}
-          if (setCookieHeader) headers['Set-Cookie'] = setCookieHeader
-          const body429 =
+          const message =
             rl.reason === 'session'
               ? "You've hit the free-preview limit for this session — thanks for trying it out. Reload to start over."
-              : 'Too many requests from this network. Please try again in a bit.'
-          return new Response(body429, { status: 429, headers })
+              : 'Too many chats from your network right now. Try again in a bit.'
+          return errorResponse(429, { error: 'rate_limit', reason: rl.reason, message }, setCookieHeader)
         }
 
         const lastMessage = body.messages[body.messages.length - 1]
         if (!lastMessage || lastMessage.role !== 'user' || !lastMessage.content.trim()) {
-          const headers: Record<string, string> = {}
-          if (setCookieHeader) headers['Set-Cookie'] = setCookieHeader
-          return new Response('last message must be a non-empty user message', {
-            status: 400,
-            headers,
-          })
+          return errorResponse(
+            400,
+            { error: 'bad_request', message: 'Message is required.' },
+            setCookieHeader,
+          )
         }
 
         const sessionId = session.id
@@ -92,13 +106,26 @@ export const Route = createFileRoute('/api/chat')({
         })
 
         if (!upstream.ok || !upstream.body) {
-          const text = await upstream.text()
-          const headers: Record<string, string> = {}
-          if (setCookieHeader) headers['Set-Cookie'] = setCookieHeader
-          return new Response(`openrouter ${upstream.status}: ${text}`, {
-            status: upstream.status,
-            headers,
-          })
+          const upstreamText = await upstream.text().catch(() => '')
+          const snippet = upstreamText.slice(0, 500) + (upstreamText.length > 500 ? '[…]' : '')
+          console.error(`openrouter upstream ${upstream.status}: ${snippet}`)
+          try {
+            await db.insert(events).values({
+              sessionId,
+              kind: 'service_error',
+              meta: { upstream_status: upstream.status, upstream_body_snippet: snippet },
+            })
+          } catch (err) {
+            console.error('persist service_error event failed', err)
+          }
+          return errorResponse(
+            502,
+            {
+              error: 'service_unavailable',
+              message: 'Service is temporarily unavailable.',
+            },
+            setCookieHeader,
+          )
         }
 
         const upstreamBody = upstream.body

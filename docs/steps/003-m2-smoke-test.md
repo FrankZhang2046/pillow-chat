@@ -6,7 +6,7 @@ M0 + M1 answered the two big product questions (summarizer works, chat model hol
 
 **Why:** this milestone bridges "personal localhost demo" → "public smoke test" with the minimum plumbing to (a) not embarrass ourselves, (b) not incinerate the OpenRouter budget to a single bad actor, and (c) capture the chat data we need for both demand analysis and later persona iteration.
 
-**Goal:** a public URL where a first-time visitor lands, clicks through an 18+ gate, and chats with a single hardcoded persona over streaming SSE. Chats persist to Postgres tagged by a signed anonymous session cookie, message content is encrypted at rest, per-session and per-IP rate limits keep costs bounded, and a retention cron purges data after 90 days.
+**Goal:** a public URL where a first-time visitor lands, clicks through an 18+ gate, and chats with a single hardcoded persona over streaming SSE. Chats persist to Postgres tagged by a signed anonymous session cookie, and per-session and per-IP rate limits keep costs bounded.
 
 Franklin owns the landing-page design separately; this step owns the backend, persistence, gate mechanics, and deployment plumbing.
 
@@ -19,9 +19,8 @@ Franklin owns the landing-page design separately; this step owns the backend, pe
 - Message persistence hooked into the existing SSE relay
 - Per-session message cap + per-IP hourly cap (cost guardrails)
 - Upgrade the hardcoded system prompt to a proper persona card (single file, still hardcoded)
-- `/api/consent` endpoint + `age_confirmed` cookie + server-side redirect gate on `/chat`
-- Basic event logging (session_start, gate_accepted, message_sent) into the events table
-- 90-day retention script (standalone Node, driven by system cron)
+- Client-side `localStorage` age gate on the landing page (no server endpoint, no HttpOnly cookie)
+- `message_sent` event logging into the events table
 - Deployment to a public URL (target: existing DigitalOcean VPS per design doc §2)
 
 **Out (explicitly deferred):**
@@ -29,9 +28,13 @@ Franklin owns the landing-page design separately; this step owns the backend, pe
 - Persona picker, memory summarizer, context assembler — M3–M5
 - Payment / paywall — post-productization
 - Formal age verification — click-through gate only; upgrade before commercialization
+- Server-enforced age gate — click-through is theater at this scale; a scripted bypass would also lie on a checkbox. Revisit at commercialization
+- Gate conversion rate metric — needs landing-page analytics we don't have yet; drop-off by message index is the demand signal we do get
 - Moderation pipeline — post-productization
 - Analytics service (Plausible/Umami) — DIY events into Postgres are enough for the demand signal at this scale
 - Encryption key rotation / KMS — key lives in env; rotation is post-smoke-test
+- Data retention / purge cron — retain everything for the smoke test. Storage is trivial at this scale and throwing away the dataset before analysis defeats the purpose. Revisit at commercialization (privacy policy + real user promises)
+- `/api/health` endpoint and uptime monitoring — 008's FE error handling (`ServiceDownCard` on 502/`service_unavailable`, retry bubble on network death) already surfaces broken state through actual usage. Separate probe adds no value at smoke-test scale; systemd `Restart=on-failure` handles crash recovery. Revisit if CI/CD deploy scripts or third-party monitoring get added
 
 ## Approach
 
@@ -84,26 +87,13 @@ Full details in `004-db-setup-and-schema.md`. In short: Docker Postgres for loca
 - Wire example messages into the request as design doc §4 assembler describes — this is a light preview of the M3 context assembler and worth doing here since it lifts persona quality noticeably.
 - `max_tokens` capped at ~200 per design doc §4.
 
-### 7. Consent gate
+### 7. Consent gate (client-side only)
 
-- Franklin owns the landing-page UI/copy; this step owns the mechanics.
-- Contract:
-  - Landing page (route `/`, Franklin's design): includes an "I am 18+ and consent to logged AI chat" checkbox + "Enter" button. Submit POSTs to `/api/consent`.
-  - `/api/consent`: reads a JSON body `{ consent: true }`, sets `age_confirmed=1` cookie (HttpOnly, Secure, SameSite=Lax, Max-Age=90d), logs an `age_gate_accepted` event on the current session (creating one if needed), returns `{ redirect: "/chat" }`.
-  - `/chat`: server-side check; if `age_confirmed` cookie missing/invalid → redirect to `/`.
-- The existing `src/routes/index.tsx` chat becomes `src/routes/chat.tsx`. New `src/routes/index.tsx` is a scaffold placeholder (Franklin's real design lands separately).
+- Landing page (`/`): "I am 18+" checkbox + Enter button. On submit, set `localStorage.age_confirmed = '1'` and route to `/chat`.
+- `/chat`: client-side effect reads `localStorage.age_confirmed`; if missing, `navigate({ to: '/' })`.
+- No server endpoint. No HttpOnly cookie. No server-side redirect. Click-through is theater at this scale — a motivated bypass also lies on a checkbox — so the plumbing tax isn't worth it. Upgrade before commercialization.
 
-### 8. Retention cron
-
-- `scripts/purge-old-data.ts` — plain Node script (run via `pnpm tsx scripts/purge-old-data.ts`):
-  - Delete from `messages` where `created_at < now() - interval '90 days'`.
-  - Delete from `events` where `created_at < now() - interval '90 days'`.
-  - Delete from `ip_counters` where `hour_bucket < now() - interval '48 hours'`.
-  - Delete from `sessions` where `last_seen_at < now() - interval '90 days'` (cascade to any leftover messages).
-- Install target: system cron on the VPS, daily at 04:00 UTC. Documented in `docs/ops/vps-setup.md`.
-- Dry-run flag (`--dry-run`) prints counts without deleting; use this to sanity-check before enabling the cron.
-
-### 9. Deployment
+### 8. Deployment
 
 - Target: existing DigitalOcean VPS (per design doc §2). Public domain TBD by Franklin.
 - Steps:
@@ -111,8 +101,6 @@ Full details in `004-db-setup-and-schema.md`. In short: Docker Postgres for loca
   - `pnpm build` produces a Nitro node output; run under `systemd` service or `pm2`.
   - Nginx reverse proxy in front, terminating TLS via Let's Encrypt (certbot).
   - Env vars in `/etc/companion-bot.env`, loaded by the systemd unit.
-  - System cron entry for the retention script.
-- Health check: `GET /api/health` returns `{ ok: true, db: "up" }`. New route, cheap.
 
 ## Files touched
 
@@ -124,16 +112,13 @@ Full details in `004-db-setup-and-schema.md`. In short: Docker Postgres for loca
 - `src/db/index.ts`
 - `src/db/schema.ts`
 - `src/db/migrations/0001_initial.sql` (generated)
-- `src/routes/api/consent.ts`
-- `src/routes/api/health.ts`
-- `scripts/purge-old-data.ts`
 - `drizzle.config.ts`
 - `docs/ops/vps-setup.md`
 
 **Modified:**
 - `src/routes/api/chat.ts` — session + rate-limit + persist
-- `src/routes/index.tsx` — copy edits per 004 §5, plus POST to `/api/consent` (landing design already lives here)
-- `src/routes/chat.tsx` — server-side gate check (redirect to `/` if `age_confirmed` cookie missing)
+- `src/routes/index.tsx` — copy edits per 004 §5; set `localStorage.age_confirmed` on submit and route to `/chat`
+- `src/routes/chat.tsx` — client-side gate check (redirect to `/` if `localStorage.age_confirmed` missing)
 - `src/routes/__root.tsx` — light meta updates for public site
 - `.env.example` — grow with each step's new vars
 - `package.json` — DB scripts covered in 004; other steps may add more
@@ -142,20 +127,18 @@ Full details in `004-db-setup-and-schema.md`. In short: Docker Postgres for loca
 
 Definition of done, walked end-to-end against the live VPS deploy:
 
-1. **Health:** `curl https://<domain>/api/health` returns `{ ok: true, db: "up" }`.
-2. **Gate redirect:** Visiting `/chat` in a fresh browser redirects to `/`. After clicking through the gate, `/chat` renders. Refreshing `/chat` no longer redirects (cookie persists).
-3. **Chat flow:** Sending a message streams tokens progressively (SSE working). No console errors.
-4. **Persistence:** After a chat, `psql` into the DB shows a `sessions` row and two `messages` rows (user + assistant). `content` is human-readable plaintext (spot-check ergonomic goal).
-5. **Rate limit — per session:** Post 51 messages from a single session, expect `429` on the 51st. Confirmed a fresh session (new cookie) can start over.
-6. **Rate limit — per IP:** Simulate 201 messages/hour from the same IP across multiple sessions; expect `429`.
-7. **Retention dry-run:** `pnpm tsx scripts/purge-old-data.ts --dry-run` prints deletion counts (initially zero on a fresh deploy). Insert a row with `created_at = now() - interval '91 days'`, re-run dry-run, confirm count = 1. Run without `--dry-run`, confirm row is gone.
-8. **Cron installed:** `crontab -l` on VPS shows the daily entry.
-9. **Env safety:** `git ls-files | grep -E '^\.env'` returns only `.env.example` — no real secrets tracked. `src/lib/env.ts` throws on boot if any required var is missing (verified by unsetting one and confirming crash).
-10. **Cost sanity:** After ~20 minutes of self-testing, check OpenRouter dashboard — spend should be well under $1 and align with expected per-message token counts from M1.
+1. **Gate redirect:** Visiting `/chat` in a fresh browser redirects to `/`. After clicking through the gate, `/chat` renders. Refreshing `/chat` no longer redirects (`localStorage.age_confirmed` persists).
+2. **Chat flow:** Sending a message streams tokens progressively (SSE working). No console errors.
+3. **Persistence:** After a chat, `psql` into the DB shows a `sessions` row and two `messages` rows (user + assistant). `content` is human-readable plaintext (spot-check ergonomic goal).
+4. **Rate limit — per session:** Post 51 messages from a single session, expect `429` on the 51st. Confirmed a fresh session (new cookie) can start over.
+5. **Rate limit — per IP:** Simulate 201 messages/hour from the same IP across multiple sessions; expect `429`.
+6. **Env safety:** `git ls-files | grep -E '^\.env'` returns only `.env.example` — no real secrets tracked. `src/lib/env.ts` throws on boot if any required var is missing (verified by unsetting one and confirming crash).
+7. **Cost sanity:** After ~20 minutes of self-testing, check OpenRouter dashboard — spend should be well under $1 and align with expected per-message token counts from M1.
 
 ## Notes / deferred concerns
 
-- **Landing page mechanics ≠ landing page design.** This step specifies the API contract for the consent gate (cookie name, redirect targets, event log) but not the copy or visual design. Franklin's design should drop into `src/routes/index.tsx` and post to `/api/consent` — anything else is negotiable.
+- **Landing page mechanics ≠ landing page design.** Franklin owns the copy/visuals; this step just specifies "set `localStorage.age_confirmed = '1'` on submit and route to `/chat`." Everything else on the page is negotiable.
+- **Why the gate stayed client-side.** Original plan called for `/api/consent` + HttpOnly cookie + server redirect + `age_gate_accepted` events (for a gate-conversion metric). Dropped because (a) click-through is theater the plan already accepts, so bypass-resistance buys nothing legally, and (b) conversion rate needs landing-page analytics we don't have — drop-off by message index is the demand signal we do get from the DB. Revisit at commercialization alongside real age verification.
 - **`x-forwarded-for` trust.** Nginx sets it; the app reads it directly. If the app is ever exposed without Nginx in front, IP rate-limiting silently breaks (`x-forwarded-for` becomes spoofable). Flagged for the ops doc.
 - **Assistant-message capture on abort.** The tee-buffer + finally-insert pattern needs a real test — dropped connections in the middle of a stream are exactly the drop-off signal we care about, so getting this right is worth extra care during implementation.
 - **Encryption at rest is dropped for M2.** Message content is plaintext. Trigger to reintroduce: M6+ (commercialization prep). Details in `004-db-setup-and-schema.md` §Notes.
