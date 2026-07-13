@@ -14,7 +14,12 @@ Captured during 009 execution. Reference this when rotating secrets, adding a te
 - Fingerprint (MD5): `52:6f:1a:06:73:eb:94:04:1c:62:43:15:fe:98:e6:4b`
 - Connect: `ssh -i ~/.ssh/vim-dojo root@<droplet-ip>`
 
-**Deploy SSH key (GH Actions → droplet):** *not yet generated.* Per 009 §9, generate a separate ED25519 key on the laptop (e.g. `~/.ssh/companion-bot-deploy`), append `.pub` to `/root/.ssh/authorized_keys` on the box, store the private key as `SSH_PRIVATE_KEY` in GitHub Actions secrets.
+**Deploy SSH key (GH Actions → droplet):** *reuses `vim-dojo`.* Deviation from 009 §9 (which spec'd a separate deploy-only key). Rationale: vim-dojo already in `/root/.ssh/authorized_keys`, no new setup. Trade-off accepted — if GH Secrets ever leak, vim-dojo is compromised broadly (rotate by generating fresh key, re-adding to DO + all boxes, updating GH secret). For a smoke test, acceptable.
+
+GitHub Actions secrets:
+- `SSH_HOST` = droplet IPv4
+- `SSH_USER` = `root`
+- `SSH_PRIVATE_KEY` = contents of `~/.ssh/vim-dojo` (private key)
 
 ## Secrets on the box
 
