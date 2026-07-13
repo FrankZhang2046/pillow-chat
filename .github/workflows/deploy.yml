@@ -55,6 +55,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash <<'ENDSSH'
           set -euo pipefail
+          export CI=true
           cd /srv/companion-bot
           pnpm install --frozen-lockfile
           set -a && source /etc/companion-bot.env && set +a
