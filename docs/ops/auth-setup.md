@@ -12,14 +12,19 @@ Captured during 009 execution. Reference this when rotating secrets, adding a te
 - Private key: `~/.ssh/vim-dojo` on Franklin's laptop
 - Public key: registered in DO, injected to `/root/.ssh/authorized_keys` at droplet creation time
 - Fingerprint (MD5): `52:6f:1a:06:73:eb:94:04:1c:62:43:15:fe:98:e6:4b`
-- Connect: `ssh -i ~/.ssh/vim-dojo root@<droplet-ip>`
+- Connect: `ssh -i ~/.ssh/vim-dojo root@138.197.118.250`
 
-**Deploy SSH key (GH Actions → droplet):** *reuses `vim-dojo`.* Deviation from 009 §9 (which spec'd a separate deploy-only key). Rationale: vim-dojo already in `/root/.ssh/authorized_keys`, no new setup. Trade-off accepted — if GH Secrets ever leak, vim-dojo is compromised broadly (rotate by generating fresh key, re-adding to DO + all boxes, updating GH secret). For a smoke test, acceptable.
+**Deploy SSH key (GH Actions → droplet):** `pillowchat-deploy` (ED25519), no passphrase. Reason we didn't reuse vim-dojo: vim-dojo has a passphrase (used by another service), and headless automation can't prompt for it.
+- Private key: `~/.ssh/pillowchat-deploy` on Franklin's laptop (also in GH Actions `SSH_PRIVATE_KEY` secret)
+- Public key: `~/.ssh/pillowchat-deploy.pub`, appended to `/root/.ssh/authorized_keys` on the droplet
+- Fingerprint (SHA256): `SHA256:ZNY9nWwYm0P+fxE/wGvPVkM7z4YMj6hgDoZVL+3i5wQ`
 
-GitHub Actions secrets:
-- `SSH_HOST` = droplet IPv4
+Droplet's `/root/.ssh/authorized_keys` therefore contains two lines: `vim-dojo` (interactive) + `pillowchat-deploy` (Actions).
+
+GitHub Actions repository secrets:
+- `SSH_HOST` = `138.197.118.250`
 - `SSH_USER` = `root`
-- `SSH_PRIVATE_KEY` = contents of `~/.ssh/vim-dojo` (private key)
+- `SSH_PRIVATE_KEY` = contents of `~/.ssh/pillowchat-deploy`
 
 ## Secrets on the box
 
@@ -34,7 +39,7 @@ Fields:
 - `NODE_ENV=production`
 - `DATABASE_URL=postgres://postgres:pillowchat@127.0.0.1:5432/postgres` — see Postgres section
 - `SESSION_SECRET` — 32-byte hex, generated with `openssl rand -hex 32` at env-file creation. Value lives only in `/etc/companion-bot.env` (and Franklin's terminal scrollback from that moment). **Never commit or copy this value to the repo.**
-- `OPENROUTER_API_KEY` — placeholder `REPLACE_ME` at write time. Franklin edits the file to paste the real key before the systemd unit starts.
+- `OPENROUTER_API_KEY` — real key populated. Copied from Franklin's local `.env` on `2026-07-13`. Rotate by generating a new key at openrouter.ai → editing `/etc/companion-bot.env` → `systemctl restart companion-bot`.
 - `RATE_LIMIT_PER_SESSION=50`
 - `RATE_LIMIT_PER_IP_HOURLY=200`
 

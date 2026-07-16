@@ -70,7 +70,9 @@ export const Route = createFileRoute('/api/chat')({
         }
 
         const sessionId = session.id
-        const model = body.model || process.env.DEFAULT_MODEL || 'anthracite-org/magnum-v4-72b'
+        const primaryModel = body.model || process.env.DEFAULT_MODEL || 'anthracite-org/magnum-v4-72b'
+        const fallbackModels = ['sao10k/l3.1-euryale-70b', 'neversleep/llama-3.1-lumimaid-70b']
+        const models = [primaryModel, ...fallbackModels.filter((m) => m !== primaryModel)]
 
         if (!admin) {
           await db.transaction(async (tx) => {
@@ -106,7 +108,7 @@ export const Route = createFileRoute('/api/chat')({
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model,
+            models,
             messages: upstreamMessages,
             stream: true,
             max_tokens: 200,
