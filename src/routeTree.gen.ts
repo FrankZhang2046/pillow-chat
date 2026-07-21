@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as HealthCheckRouteImport } from './routes/healthCheck'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSessionStatusRouteImport } from './routes/api/session-status'
@@ -16,6 +17,11 @@ import { Route as ApiEmailSignupRouteImport } from './routes/api/email-signup'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiAdminRouteImport } from './routes/api/admin'
 
+const HealthCheckRoute = HealthCheckRouteImport.update({
+  id: '/healthCheck',
+  path: '/healthCheck',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatRoute = ChatRouteImport.update({
   id: '/chat',
   path: '/chat',
@@ -50,6 +56,7 @@ const ApiAdminRoute = ApiAdminRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
+  '/healthCheck': typeof HealthCheckRoute
   '/api/admin': typeof ApiAdminRoute
   '/api/chat': typeof ApiChatRoute
   '/api/email-signup': typeof ApiEmailSignupRoute
@@ -58,6 +65,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
+  '/healthCheck': typeof HealthCheckRoute
   '/api/admin': typeof ApiAdminRoute
   '/api/chat': typeof ApiChatRoute
   '/api/email-signup': typeof ApiEmailSignupRoute
@@ -67,6 +75,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
+  '/healthCheck': typeof HealthCheckRoute
   '/api/admin': typeof ApiAdminRoute
   '/api/chat': typeof ApiChatRoute
   '/api/email-signup': typeof ApiEmailSignupRoute
@@ -77,6 +86,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/chat'
+    | '/healthCheck'
     | '/api/admin'
     | '/api/chat'
     | '/api/email-signup'
@@ -85,6 +95,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/chat'
+    | '/healthCheck'
     | '/api/admin'
     | '/api/chat'
     | '/api/email-signup'
@@ -93,6 +104,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/chat'
+    | '/healthCheck'
     | '/api/admin'
     | '/api/chat'
     | '/api/email-signup'
@@ -102,6 +114,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ChatRoute: typeof ChatRoute
+  HealthCheckRoute: typeof HealthCheckRoute
   ApiAdminRoute: typeof ApiAdminRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiEmailSignupRoute: typeof ApiEmailSignupRoute
@@ -110,6 +123,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/healthCheck': {
+      id: '/healthCheck'
+      path: '/healthCheck'
+      fullPath: '/healthCheck'
+      preLoaderRoute: typeof HealthCheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/chat': {
       id: '/chat'
       path: '/chat'
@@ -158,6 +178,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ChatRoute: ChatRoute,
+  HealthCheckRoute: HealthCheckRoute,
   ApiAdminRoute: ApiAdminRoute,
   ApiChatRoute: ApiChatRoute,
   ApiEmailSignupRoute: ApiEmailSignupRoute,

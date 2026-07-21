@@ -20,6 +20,8 @@ The one thing rate limiting has to prevent: **someone burning our OpenRouter bud
 
 All rate limiting is **app-layer**, Postgres-backed. Nginx (`docs/steps/009-vps-deployment.md:198-222`) is a plain `proxy_pass` with **no** `limit_req` directives — the app is the only gate.
 
+**Exempt endpoints.** `/healthCheck` (see `docs/steps/011-healthcheck-endpoint.md`) bypasses `checkRateLimits` deliberately so the external dashboard can always distinguish "down" from "rate-limited." Its probes hit Postgres (`SELECT 1`) and OpenRouter's public `/v1/models` HEAD — neither costs money. A flood of the endpoint burns our compute, not our OpenRouter budget.
+
 ### 1. Per-session chat cap
 
 - **Code:** `src/lib/rate-limit.ts:15` — `if (sessionMessageCount >= env.RATE_LIMIT_PER_SESSION)`

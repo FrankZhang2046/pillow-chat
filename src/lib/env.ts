@@ -26,4 +26,5 @@ export const env = {
   RATE_LIMIT_PER_SESSION: intWithDefault('RATE_LIMIT_PER_SESSION', 50),
   RATE_LIMIT_PER_IP_HOURLY: intWithDefault('RATE_LIMIT_PER_IP_HOURLY', 200),
   ADMIN_TOKEN: optional('ADMIN_TOKEN'),
+  APP_VERSION: optional('APP_VERSION'),
 } as const

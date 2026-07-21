@@ -75,6 +75,58 @@ Same flow, but `ADMIN_TOKEN` lives in `/etc/companion-bot.env` (per 009 deployme
 
 **Honest caveat:** token in a GET query string ends up in Nginx access logs, browser history, and any Referer chain. Fine for smoke-test stakes; rotate the token if that's ever a concern.
 
+# Health Check
+
+Public unauthenticated `GET /healthCheck` returns a JSON rollup of the two dependencies that can take the service down. Consumed by an external status dashboard. Full spec + design in `docs/steps/011-healthcheck-endpoint.md`.
+
+## Usage
+
+```bash
+curl -sSi https://<your-domain>/healthCheck
+```
+
+Response headers always include `Access-Control-Allow-Origin: *` and `Cache-Control: no-store`.
+
+## Status semantics
+
+| HTTP | Body `status`  | Meaning |
+|---|---|---|
+| `200` | `"healthy"`    | Both checks green. |
+| `200` | `"degraded"`   | Non-critical check failed. (Currently unreachable — both checks are `critical: true`.) |
+| `503` | `"unhealthy"`  | A critical check failed. Chat can't function. |
+
+Any other status (`500`, `502`, timeout) means the app itself is not responding — treat as harder failure than a `503` from this endpoint.
+
+## What's probed
+
+| Name | Critical | Probe | Timeout |
+|---|---|---|---|
+| `Postgres`   | ✓ | `SELECT 1` via the pooled drizzle client | 2s |
+| `OpenRouter` | ✓ | `HEAD https://openrouter.ai/api/v1/models` (public endpoint, no auth, no cost) | 2s |
+
+Probes run in parallel. Each is wrapped in try/catch — an uncaught exception cannot fail the whole endpoint.
+
+## Sample response — healthy
+
+```json
+{
+  "status": "healthy",
+  "service": "pillow-chat",
+  "version": "dev",
+  "timestamp": "2026-07-21T16:50:56.670Z",
+  "checks": [
+    { "name": "Postgres",   "status": "healthy", "latencyMs": 4,  "critical": true },
+    { "name": "OpenRouter", "status": "healthy", "latencyMs": 54, "critical": true }
+  ]
+}
+```
+
+`version` reads from the optional `APP_VERSION` env var (falls back to `"dev"` when unset). To surface the deployed git SHA, set `APP_VERSION=$GITHUB_SHA` in the deploy workflow's env block.
+
+## Rate-limit exemption
+
+`/healthCheck` bypasses `checkRateLimits` so the dashboard can always distinguish "down" from "rate-limited." See `docs/ops/rate-limiting.md` §"Exempt endpoints."
+
 ## Testing
 
 This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
