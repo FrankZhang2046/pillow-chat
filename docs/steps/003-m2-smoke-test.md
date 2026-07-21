@@ -24,7 +24,7 @@ Franklin owns the landing-page design separately; this step owns the backend, pe
 - Deployment to a public URL (target: existing DigitalOcean VPS per design doc §2)
 
 **Out (explicitly deferred):**
-- Any form of login / email capture — deferred until memory ships (M5+) and there's a product reason to return
+- Any form of login / email capture — deferred until memory ships (M5+) and there's a product reason to return *(superseded — email capture added in `010-explicit-copy-and-email-capture.md`; login still deferred)*
 - Persona picker, memory summarizer, context assembler — M3–M5
 - Payment / paywall — post-productization
 - Formal age verification — click-through gate only; upgrade before commercialization

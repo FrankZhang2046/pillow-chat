@@ -1,5 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { Clock, Heart, Lock } from 'lucide-react'
 import { useState, type CSSProperties } from 'react'
+import { EmailCaptureForm } from './-components/email-capture'
 
 export const Route = createFileRoute('/')({
   component: Landing,
@@ -242,7 +244,7 @@ function Landing() {
                     boxShadow: '0 0 0 1px oklch(0.4 0.06 350 / 0.5) inset',
                   }}
                 >
-                  Still thinking about that hiking trail you mentioned — did you end up going?
+                  still thinking about last night — the way you had me.
                 </div>
                 <span
                   style={{
@@ -274,7 +276,7 @@ function Landing() {
                     borderRadius: '16px 4px 16px 16px',
                   }}
                 >
-                  Not yet, this weekend maybe
+                  tell me what you want now
                 </div>
                 <span
                   style={{
@@ -331,45 +333,17 @@ function Landing() {
       >
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'clamp(24px,4vw,40px)' }}>
           <ValueProp
-            iconInner={
-              <div
-                style={{
-                  width: '14px',
-                  height: '14px',
-                  borderRadius: '50%',
-                  border: '2px solid oklch(0.76 0.16 350)',
-                }}
-              />
-            }
+            iconInner={<Heart size={18} strokeWidth={2} color="oklch(0.76 0.16 350)" />}
             title="Remembers you"
             body="Builds on every chat. No repeating yourself."
           />
           <ValueProp
-            iconInner={
-              <div
-                style={{
-                  width: '14px',
-                  height: '14px',
-                  borderRadius: '3px',
-                  border: '2px solid oklch(0.76 0.16 350)',
-                }}
-              />
-            }
+            iconInner={<Clock size={18} strokeWidth={2} color="oklch(0.76 0.16 350)" />}
             title="Always available"
             body="3am or 3pm, she's there instantly."
           />
           <ValueProp
-            iconInner={
-              <div
-                style={{
-                  width: '14px',
-                  height: '9px',
-                  borderRadius: '2px',
-                  border: '2px solid oklch(0.76 0.16 350)',
-                  borderTop: 'none',
-                }}
-              />
-            }
+            iconInner={<Lock size={18} strokeWidth={2} color="oklch(0.76 0.16 350)" />}
             title="Private by design"
             body="No account. No email. Private by default."
           />
@@ -442,6 +416,58 @@ function Landing() {
           <button disabled={enterDisabled} onClick={() => void enter()} style={enterStyle}>
             {enterLabel}
           </button>
+        </div>
+      </section>
+
+      {/* EMAIL CAPTURE (secondary) */}
+      <section
+        style={{
+          padding: 'clamp(28px,5vw,44px) clamp(20px,5vw,64px) clamp(40px,6vw,56px)',
+          borderTop: '1px solid oklch(0.2 0.015 30)',
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+      >
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '460px',
+            background: 'oklch(0.11 0.008 30)',
+            borderRadius: '16px',
+            padding: 'clamp(22px,4vw,30px)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px',
+            boxShadow: '0 0 0 1px oklch(0.22 0.02 30)',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <h3
+              style={{
+                margin: 0,
+                font: '700 18px/1.25 Sora, sans-serif',
+                color: 'oklch(0.94 0.01 30)',
+                letterSpacing: '-0.005em',
+              }}
+            >
+              Still in beta.
+            </h3>
+            <p
+              style={{
+                margin: 0,
+                font: '400 13.5px/1.5 Sora, sans-serif',
+                color: 'oklch(0.6 0.01 30)',
+              }}
+            >
+              Sign up for development updates as memory and new features roll out.
+            </p>
+          </div>
+          <EmailCaptureForm
+            source="landing"
+            buttonLabel="Sign up"
+            doneLabel="Thanks — you're on the list."
+            variant="landing"
+          />
         </div>
       </section>
 

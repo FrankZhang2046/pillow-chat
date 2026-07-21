@@ -8,6 +8,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 
@@ -68,5 +69,21 @@ export const ipCounters = pgTable(
   (t) => [
     primaryKey({ columns: [t.ipHash, t.hourBucket] }),
     index('ip_counters_hour_bucket_idx').on(t.hourBucket),
+  ],
+)
+
+export const emailSignups = pgTable(
+  'email_signups',
+  {
+    id: uuid('id').primaryKey().$defaultFn(() => randomUUID()),
+    email: text('email').notNull(),
+    source: text('source').notNull(),
+    sessionId: uuid('session_id').references(() => sessions.id, { onDelete: 'set null' }),
+    ipHash: text('ip_hash').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('email_signups_email_idx').on(t.email),
+    index('email_signups_source_created_at_idx').on(t.source, t.createdAt),
   ],
 )

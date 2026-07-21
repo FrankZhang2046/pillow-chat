@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSessionStatusRouteImport } from './routes/api/session-status'
+import { Route as ApiEmailSignupRouteImport } from './routes/api/email-signup'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiAdminRouteImport } from './routes/api/admin'
 
@@ -30,6 +31,11 @@ const ApiSessionStatusRoute = ApiSessionStatusRouteImport.update({
   path: '/api/session-status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiEmailSignupRoute = ApiEmailSignupRouteImport.update({
+  id: '/api/email-signup',
+  path: '/api/email-signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/chat': typeof ChatRoute
   '/api/admin': typeof ApiAdminRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/email-signup': typeof ApiEmailSignupRoute
   '/api/session-status': typeof ApiSessionStatusRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/chat': typeof ChatRoute
   '/api/admin': typeof ApiAdminRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/email-signup': typeof ApiEmailSignupRoute
   '/api/session-status': typeof ApiSessionStatusRoute
 }
 export interface FileRoutesById {
@@ -61,19 +69,33 @@ export interface FileRoutesById {
   '/chat': typeof ChatRoute
   '/api/admin': typeof ApiAdminRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/email-signup': typeof ApiEmailSignupRoute
   '/api/session-status': typeof ApiSessionStatusRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/chat' | '/api/admin' | '/api/chat' | '/api/session-status'
+  fullPaths:
+    | '/'
+    | '/chat'
+    | '/api/admin'
+    | '/api/chat'
+    | '/api/email-signup'
+    | '/api/session-status'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chat' | '/api/admin' | '/api/chat' | '/api/session-status'
+  to:
+    | '/'
+    | '/chat'
+    | '/api/admin'
+    | '/api/chat'
+    | '/api/email-signup'
+    | '/api/session-status'
   id:
     | '__root__'
     | '/'
     | '/chat'
     | '/api/admin'
     | '/api/chat'
+    | '/api/email-signup'
     | '/api/session-status'
   fileRoutesById: FileRoutesById
 }
@@ -82,6 +104,7 @@ export interface RootRouteChildren {
   ChatRoute: typeof ChatRoute
   ApiAdminRoute: typeof ApiAdminRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiEmailSignupRoute: typeof ApiEmailSignupRoute
   ApiSessionStatusRoute: typeof ApiSessionStatusRoute
 }
 
@@ -108,6 +131,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSessionStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/email-signup': {
+      id: '/api/email-signup'
+      path: '/api/email-signup'
+      fullPath: '/api/email-signup'
+      preLoaderRoute: typeof ApiEmailSignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
@@ -130,6 +160,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRoute,
   ApiAdminRoute: ApiAdminRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiEmailSignupRoute: ApiEmailSignupRoute,
   ApiSessionStatusRoute: ApiSessionStatusRoute,
 }
 export const routeTree = rootRouteImport

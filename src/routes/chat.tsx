@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { EmailCaptureForm } from './-components/email-capture'
 
 type ErrorKind = 'retry' | 'rate-limit-session' | 'rate-limit-ip' | 'service-down'
 
@@ -651,10 +652,22 @@ function RateLimitSessionCard() {
   return (
     <div style={cardContainerStyle}>
       <span style={cardTextStyle}>
-        You've hit the free-preview limit for this session — reload to start over.
+        You've hit the beta preview limit.
       </span>
-      <button onClick={() => window.location.reload()} style={cardActionStyle}>
-        ↻ Reload chat
+      <span style={cardTextStyle}>
+        Sign up for development updates — memory, longer chats, and more coming.
+      </span>
+      <EmailCaptureForm
+        source="wall"
+        buttonLabel="Sign up"
+        doneLabel="Thanks — you're on the list."
+        variant="wall"
+      />
+      <button
+        onClick={() => window.location.reload()}
+        style={{ ...cardActionStyle, font: '600 11.5px Sora, sans-serif', opacity: 0.7 }}
+      >
+        ↻ Reload to start over
       </button>
     </div>
   )
